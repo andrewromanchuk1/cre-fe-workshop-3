@@ -61,8 +61,6 @@
 
         static loadingIndicator = '<p class="text-stone-50">Loading...</p>';
 
-        init() {
-        }
 
         renderVehicle({ name, manufacturer, cost_in_credits, filmNames = [] }) {
           return StarWarsApp.vehicleTemplate
@@ -70,6 +68,37 @@
             .replace('[MANUFACTURER]', manufacturer)
             .replace('[PRICE]', cost_in_credits)
             .replace('[FILMS]', filmNames.join(', '));
+        }
+
+        init() {
+          this.loadData(this.showVehicleLoadingIndicator, 'https://swapi.info/api/vehicles', 'vehicles');
+          this.loadData(this.showStarshipLoadingIndicator, 'https://swapi.info/api/starships', 'starships');
+        }
+
+        async loadData(loadFunc, url, id) {
+          loadFunc();
+
+          let data = await delay() 
+            .then(() => fetch(url))
+            .then(data => data.json())
+            .then(data => data.slice(0, 6))
+            .catch(err => console.error(err));
+
+            data = await Promise.allSettled(data.map( async element => {
+              return {
+                ...element,
+                filmNames: await this.loadFilmsForVehicles(element)
+              }
+            }))
+            .then(data => data.map(({value}) => value))
+            .catch(err => console.error(err));
+
+            const result = data.map(this.renderVehicle).join('');
+            document.getElementById(id).innerHTML = result;
+        }
+
+        async loadFilmsForVehicles({ films }) {
+          return await Promise.all(films.map(el => fetch(el).then(data => data.json()).then(data => data.title)));
         }
 
         showVehicleLoadingIndicator() {
